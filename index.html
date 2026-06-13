@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NexusBoard — Dashboard</title>
+
+  <!-- Google Fonts: Fira Sans + Fira Code -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Fira Sans', 'sans-serif'],
+            mono: ['Fira Code', 'monospace'],
+          },
+          colors: {
+            bg:      '#080C18',
+            surface: '#0D1426',
+            card:    '#111827',
+            border:  '#1E293B',
+            primary: '#3B82F6',
+            accent:  '#F59E0B',
+            muted:   '#475569',
+          },
+          keyframes: {
+            fadeIn:  { from: { opacity: '0', transform: 'translateY(8px)' }, to: { opacity: '1', transform: 'translateY(0)' } },
+            pulse2:  { '0%,100%': { opacity: '1' }, '50%': { opacity: '.5' } },
+          },
+          animation: {
+            fadeIn: 'fadeIn 0.4s ease both',
+          },
+        },
+      },
+    }
+  </script>
+
+  <style>
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+
+    /* Smooth scroll */
+    html { scroll-behavior: smooth; }
+
+    /* Sidebar transition */
+    #sidebar { transition: width 200ms ease, transform 200ms ease; }
+    #sidebar.collapsed { width: 4rem; }
+    #sidebar.collapsed .nav-label,
+    #sidebar.collapsed .logo-text,
+    #sidebar.collapsed .user-info { display: none; }
+    #sidebar.collapsed .nav-item { justify-content: center; padding-left: 0; padding-right: 0; }
+    #sidebar.collapsed .brand { justify-content: center; }
+
+    /* Mobile sidebar */
+    @media (max-width: 768px) {
+      #sidebar { position: fixed; z-index: 50; transform: translateX(-100%); width: 16rem !important; }
+      #sidebar.open { transform: translateX(0); }
+    }
+
+    /* Skip link */
+    .skip-link { position: absolute; top: -9999px; left: 1rem; }
+    .skip-link:focus { top: 1rem; z-index: 9999; }
+
+    /* Active nav */
+    .nav-item.active { background: rgba(59,130,246,0.12); color: #3B82F6; }
+    .nav-item.active .nav-icon { color: #3B82F6; }
+    .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: #3B82F6; border-radius: 0 4px 4px 0; }
+
+    /* Stat card glow */
+    .stat-card:hover { box-shadow: 0 0 0 1px #1E293B, 0 8px 24px rgba(59,130,246,0.08); }
+
+    /* Notification badge */
+    .badge { animation: pulse2 2s cubic-bezier(0.4,0,0.6,1) infinite; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, ::before, ::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+
+<body class="bg-bg text-slate-100 font-sans antialiased overflow-hidden h-screen">
+
+  <!-- Skip link -->
+  <a href="#main-content" class="skip-link bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-white">
+    Skip to main content
+  </a>
+
+  <!-- Mobile overlay -->
+  <div id="overlay" class="hidden fixed inset-0 bg-black/60 z-40 md:hidden" onclick="toggleSidebar()" aria-hidden="true"></div>
+
+  <!-- App Shell -->
+  <div class="flex h-screen overflow-hidden">
+
+    <!-- ═══════════════════ SIDEBAR ═══════════════════ -->
+    <aside id="sidebar" role="navigation" aria-label="Main navigation"
+           class="w-64 bg-surface border-r border-border flex flex-col flex-shrink-0 select-none">
+
+      <!-- Brand -->
+      <div class="brand flex items-center gap-3 px-5 h-16 border-b border-border">
+        <div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
+          <!-- Bolt icon -->
+          <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+          </svg>
+        </div>
+        <span class="logo-text font-bold text-base text-white tracking-tight">NexusBoard</span>
+      </div>
+
+      <!-- Navigation -->
+      <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
+
+        <p class="nav-label text-xs font-semibold text-muted uppercase tracking-widest px-3 mb-2 mt-1">Overview</p>
+
+        <!-- Home — active -->
+        <a href="index.html" class="nav-item active relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150 cursor-pointer" aria-current="page">
+          <svg class="nav-icon w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+          </svg>
+          <span class="nav-label">Home</span>
+        </a>
+
+        <!-- Analytics -->
+        <a href="analytics.html" class="nav-item relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-100 hover:bg-white/5 transition-colors duration-150 cursor-pointer">
+          <svg class="nav-icon w-4 h-4 flex-shrink-0 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+          <span class="nav-label">Analytics</span>
+        </a>
+
+        <!-- Reports -->
+        <a href="reports.html" class="nav-item relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-100 hover:bg-white/5 transition-colors duration-150 cursor-pointer">
+          <svg class="nav-icon w-4 h-4 flex-shrink-0 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          <span class="nav-label">Reports</span>
+        </a>
+
+        <p class="nav-label text-xs font-semibold text-muted uppercase tracking-widest px-3 mb-2 mt-5">Manage</p>
+
+        <!-- Orders -->
+        <a href="orders.html" class="nav-item relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-100 hover:bg-white/5 transition-colors duration-150 cursor-pointer">
+          <svg class="nav-icon w-4 h-4 flex-shrink-0 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+          </svg>
+          <span class="nav-label">Orders</span>
+          <span class="nav-label ml-auto bg-primary/20 text-primary text-xs font-semibold px-2 py-0.5 rounded-full">12</span>
+        </a>
+
+        <!-- Products -->
+        <a href="products.html" class="nav-item relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-100 hover:bg-white/5 transition-colors duration-150 cursor-pointer">
+          <svg class="nav-icon w-4 h-4 flex-shrink-0 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+          </svg>
+          <span class="nav-label">Products</span>
+        </a>
+
+        <!-- Customers -->
+        <a href="customers.html" class="nav-item relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-100 hover:bg-white/5 transition-colors duration-150 cursor-pointer">
+          <svg class="nav-icon w-4 h-4 flex-shrink-0 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+          </svg>
+          <span class="nav-label">Customers</span>
+        </a>
+
+        <p class="nav-label text-xs font-semibold text-muted uppercase tracking-widest px-3 mb-2 mt-5">System</p>
+
+        <!-- Settings -->
+        <a href="settings.html" class="nav-item relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-100 hover:bg-white/5 transition-colors duration-150 cursor-pointer">
+          <svg class="nav-icon w-4 h-4 flex-shrink-0 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          <span class="nav-label">Settings</span>
+        </a>
+
+      </nav>
+
+      <!-- User Profile -->
+      <div class="px-3 py-4 border-t border-border">
+        <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors duration-150 cursor-pointer group" aria-label="User menu">
+          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center flex-shrink-0">
+            <span class="text-xs font-bold text-white">JD</span>
+          </div>
+          <div class="user-info flex-1 text-left min-w-0">
+            <p class="text-sm font-semibold text-slate-200 truncate">Jane Doe</p>
+            <p class="text-xs text-muted truncate">Admin</p>
+          </div>
+          <svg class="user-info w-4 h-4 text-muted group-hover:text-slate-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/>
+          </svg>
+        </button>
+      </div>
+    </aside>
+
+    <!-- ═══════════════════ MAIN ═══════════════════ -->
+    <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+      <!-- Top Header -->
+      <header class="h-16 bg-surface border-b border-border flex items-center gap-4 px-4 md:px-6 flex-shrink-0">
+
+        <!-- Hamburger (mobile) / Collapse (desktop) -->
+        <button id="sidebarToggle" onclick="toggleSidebar()"
+                class="flex items-center justify-center w-9 h-9 rounded-lg hover:bg-white/8 transition-colors duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50"
+                aria-label="Toggle sidebar" aria-expanded="true" aria-controls="sidebar">
+          <svg class="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
+
+        <!-- Page title -->
+        <div class="flex-1 min-w-0">
+          <h1 class="text-base font-semibold text-slate-100 truncate">Dashboard</h1>
+          <p class="text-xs text-muted hidden sm:block">Welcome back, Jane — here's what's happening today.</p>
+        </div>
+
+        <!-- Search -->
+        <div class="hidden md:flex items-center gap-2 bg-bg border border-border rounded-lg px-3 h-9 w-56 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/30 transition-all duration-150">
+          <svg class="w-3.5 h-3.5 text-muted flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <input type="search" placeholder="Search…" aria-label="Search dashboard"
+                 class="bg-transparent text-sm text-slate-300 placeholder-muted w-full outline-none" />
+          <kbd class="hidden lg:inline text-xs text-muted bg-border rounded px-1 py-0.5">⌘K</kbd>
+        </div>
+
+        <!-- Notifications -->
+        <button class="relative flex items-center justify-center w-9 h-9 rounded-lg hover:bg-white/5 transition-colors duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50" aria-label="View notifications">
+          <svg class="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+          </svg>
+          <span class="badge absolute top-1.5 right-1.5 w-2 h-2 bg-accent rounded-full" aria-label="3 notifications"></span>
+        </button>
+
+        <!-- Avatar -->
+        <button class="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-surface transition-all" aria-label="Open user menu" aria-haspopup="true">
+          <span class="text-xs font-bold text-white" aria-hidden="true">JD</span>
+        </button>
+
+      </header>
+
+      <!-- ═══ PAGE CONTENT ═══ -->
+      <main id="main-content" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6" tabindex="-1">
+
+        <!-- ── Welcome Banner ── -->
+        <section aria-label="Welcome" class="animate-fadeIn" style="animation-delay:0ms">
+          <div class="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary/20 via-primary/10 to-transparent border border-primary/20 px-6 py-5">
+            <!-- Subtle glow -->
+            <div class="absolute -top-8 -right-8 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" aria-hidden="true"></div>
+            <div class="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <p class="text-xs font-mono text-primary mb-1">Thursday, June 12, 2026</p>
+                <h2 class="text-xl font-bold text-white">Good morning, Jane!</h2>
+                <p class="text-sm text-slate-400 mt-0.5">Your store is performing <span class="text-green-400 font-semibold">18% above</span> last month's benchmark.</p>
+              </div>
+              <a href="analytics.html" class="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 active:scale-95 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 self-start sm:self-auto whitespace-nowrap">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+                View Analytics
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── KPI Stat Cards ── -->
+        <section aria-label="Key metrics">
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+
+            <!-- Revenue -->
+            <div class="stat-card animate-fadeIn bg-card border border-border rounded-xl p-4 cursor-default transition-all duration-200" style="animation-delay:60ms">
+              <div class="flex items-start justify-between mb-3">
+                <div class="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center">
+                  <svg class="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                </div>
+                <span class="inline-flex items-center gap-1 text-xs font-semibold text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full">
+                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
+                  12.5%
+                </span>
+              </div>
+              <p class="text-xs text-muted font-medium">Total Revenue</p>
+              <p class="text-2xl font-bold font-mono text-white mt-0.5">$84,209</p>
+              <p class="text-xs text-muted mt-1">vs $74,852 last month</p>
+            </div>
+
+            <!-- Orders -->
+            <div class="stat-card animate-fadeIn bg-card border border-border rounded-xl p-4 cursor-default transition-all duration-200" style="animation-delay:100ms">
+              <div class="flex items-start justify-between mb-3">
+                <div class="w-9 h-9 rounded-lg bg-violet-500/15 flex items-center justify-center">
+                  <svg class="w-4 h-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+                  </svg>
+                </div>
+                <span class="inline-flex items-center gap-1 text-xs font-semibold text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full">
+                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
+                  8.2%
+                </span>
+              </div>
+              <p class="text-xs text-muted font-medium">New Orders</p>
+              <p class="text-2xl font-bold font-mono text-white mt-0.5">1,429</p>
+              <p class="text-xs text-muted mt-1">vs 1,321 last month</p>
+            </div>
+
+            <!-- Customers -->
+            <div class="stat-card animate-fadeIn bg-card border border-border rounded-xl p-4 cursor-default transition-all duration-200" style="animation-delay:140ms">
+              <div class="flex items-start justify-between mb-3">
+                <div class="w-9 h-9 rounded-lg bg-accent/15 flex items-center justify-center">
+                  <svg class="w-4 h-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  </svg>
+                </div>
+                <span class="inline-flex items-center gap-1 text-xs font-semibold text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full">
+                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
+                  5.1%
+                </span>
+              </div>
+              <p class="text-xs text-muted font-medium">Active Customers</p>
+              <p class="text-2xl font-bold font-mono text-white mt-0.5">6,748</p>
+              <p class="text-xs text-muted mt-1">vs 6,421 last month</p>
+            </div>
+
+            <!-- Conversion Rate -->
+            <div class="stat-card animate-fadeIn bg-card border border-border rounded-xl p-4 cursor-default transition-all duration-200" style="animation-delay:180ms">
+              <div class="flex items-start justify-between mb-3">
+                <div class="w-9 h-9 rounded-lg bg-rose-500/15 flex items-center justify-center">
+                  <svg class="w-4 h-4 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                  </svg>
+                </div>
+                <span class="inline-flex items-center gap-1 text-xs font-semibold text-rose-400 bg-rose-400/10 px-2 py-0.5 rounded-full">
+                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+                  0.4%
+                </span>
+              </div>
+              <p class="text-xs text-muted font-medium">Conversion Rate</p>
+              <p class="text-2xl font-bold font-mono text-white mt-0.5">3.62%</p>
+              <p class="text-xs text-muted mt-1">vs 3.66% last month</p>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- ── Charts Row ── -->
+        <section aria-label="Charts" class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+
+          <!-- Revenue Line Chart — 2/3 width -->
+          <div class="animate-fadeIn xl:col-span-2 bg-card border border-border rounded-xl p-5" style="animation-delay:220ms">
+            <div class="flex items-center justify-between mb-5">
+              <div>
+                <h2 class="text-sm font-semibold text-slate-200">Revenue Trend</h2>
+                <p class="text-xs text-muted mt-0.5">Monthly revenue for 2026</p>
+              </div>
+              <div class="flex items-center gap-1 text-xs text-muted">
+                <span class="inline-block w-2 h-2 rounded-full bg-primary mr-1" aria-hidden="true"></span>Revenue
+                <span class="inline-block w-2 h-2 rounded-full bg-violet-400 ml-3 mr-1" aria-hidden="true"></span>Target
+              </div>
+            </div>
+            <div class="relative h-52">
+              <canvas id="revenueChart" aria-label="Monthly revenue line chart" role="img"></canvas>
+            </div>
+          </div>
+
+          <!-- Traffic Sources Bar Chart — 1/3 width -->
+          <div class="animate-fadeIn bg-card border border-border rounded-xl p-5" style="animation-delay:260ms">
+            <div class="mb-5">
+              <h2 class="text-sm font-semibold text-slate-200">Traffic Sources</h2>
+              <p class="text-xs text-muted mt-0.5">Visitors by channel</p>
+            </div>
+            <div class="relative h-52">
+              <canvas id="trafficChart" aria-label="Traffic sources bar chart" role="img"></canvas>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- ── Bottom Row: Recent Orders + Quick Links ── -->
+        <section aria-label="Recent orders and quick links" class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+
+          <!-- Recent Orders Table — 2/3 -->
+          <div class="animate-fadeIn xl:col-span-2 bg-card border border-border rounded-xl overflow-hidden" style="animation-delay:300ms">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 class="text-sm font-semibold text-slate-200">Recent Orders</h2>
+              <a href="orders.html" class="text-xs text-primary hover:text-primary/80 font-medium transition-colors duration-150 cursor-pointer focus:outline-none focus:underline">
+                View all →
+              </a>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm" role="table">
+                <thead>
+                  <tr class="border-b border-border">
+                    <th scope="col" class="text-left text-xs font-semibold text-muted px-5 py-3 uppercase tracking-wider">Order</th>
+                    <th scope="col" class="text-left text-xs font-semibold text-muted px-3 py-3 uppercase tracking-wider hidden sm:table-cell">Customer</th>
+                    <th scope="col" class="text-left text-xs font-semibold text-muted px-3 py-3 uppercase tracking-wider hidden md:table-cell">Date</th>
+                    <th scope="col" class="text-right text-xs font-semibold text-muted px-3 py-3 uppercase tracking-wider">Amount</th>
+                    <th scope="col" class="text-left text-xs font-semibold text-muted px-3 py-3 uppercase tracking-wider">Status</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-border">
+
+                  <tr class="hover:bg-white/3 transition-colors duration-100 cursor-pointer">
+                    <td class="px-5 py-3 font-mono text-xs text-slate-300">#ORD-4821</td>
+                    <td class="px-3 py-3 text-slate-300 hidden sm:table-cell">
+                      <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center flex-shrink-0">
+                          <span class="text-xs text-white font-bold leading-none" aria-hidden="true">AL</span>
+                        </div>
+                        <span class="text-xs">Alex Liu</span>
+                      </div>
+                    </td>
+                    <td class="px-3 py-3 text-xs text-muted hidden md:table-cell">Jun 12, 2026</td>
+                    <td class="px-3 py-3 text-right font-mono text-xs font-semibold text-white">$240.00</td>
+                    <td class="px-3 py-3"><span class="inline-flex items-center gap-1 text-xs font-semibold text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full">Delivered</span></td>
+                  </tr>
+
+                  <tr class="hover:bg-white/3 transition-colors duration-100 cursor-pointer">
+                    <td class="px-5 py-3 font-mono text-xs text-slate-300">#ORD-4820</td>
+                    <td class="px-3 py-3 text-slate-300 hidden sm:table-cell">
+                      <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 flex items-center justify-center flex-shrink-0">
+                          <span class="text-xs text-white font-bold leading-none" aria-hidden="true">SM</span>
+                        </div>
+                        <span class="text-xs">Sara M.</span>
+                      </div>
+                    </td>
+                    <td class="px-3 py-3 text-xs text-muted hidden md:table-cell">Jun 11, 2026</td>
+                    <td class="px-3 py-3 text-right font-mono text-xs font-semibold text-white">$89.50</td>
+                    <td class="px-3 py-3"><span class="inline-flex items-center gap-1 text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">Processing</span></td>
+                  </tr>
+
+                  <tr class="hover:bg-white/3 transition-colors duration-100 cursor-pointer">
+                    <td class="px-5 py-3 font-mono text-xs text-slate-300">#ORD-4819</td>
+                    <td class="px-3 py-3 text-slate-300 hidden sm:table-cell">
+                      <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center flex-shrink-0">
+                          <span class="text-xs text-white font-bold leading-none" aria-hidden="true">RK</span>
+                        </div>
+                        <span class="text-xs">Raj K.</span>
+                      </div>
+                    </td>
+                    <td class="px-3 py-3 text-xs text-muted hidden md:table-cell">Jun 11, 2026</td>
+                    <td class="px-3 py-3 text-right font-mono text-xs font-semibold text-white">$512.75</td>
+                    <td class="px-3 py-3"><span class="inline-flex items-center gap-1 text-xs font-semibold text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full">Delivered</span></td>
+                  </tr>
+
+                  <tr class="hover:bg-white/3 transition-colors duration-100 cursor-pointer">
+                    <td class="px-5 py-3 font-mono text-xs text-slate-300">#ORD-4818</td>
+                    <td class="px-3 py-3 text-slate-300 hidden sm:table-cell">
+                      <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 rounded-full bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center flex-shrink-0">
+                          <span class="text-xs text-white font-bold leading-none" aria-hidden="true">MO</span>
+                        </div>
+                        <span class="text-xs">Maria O.</span>
+                      </div>
+                    </td>
+                    <td class="px-3 py-3 text-xs text-muted hidden md:table-cell">Jun 10, 2026</td>
+                    <td class="px-3 py-3 text-right font-mono text-xs font-semibold text-white">$128.00</td>
+                    <td class="px-3 py-3"><span class="inline-flex items-center gap-1 text-xs font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full">Shipped</span></td>
+                  </tr>
+
+                  <tr class="hover:bg-white/3 transition-colors duration-100 cursor-pointer">
+                    <td class="px-5 py-3 font-mono text-xs text-slate-300">#ORD-4817</td>
+                    <td class="px-3 py-3 text-slate-300 hidden sm:table-cell">
+                      <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center flex-shrink-0">
+                          <span class="text-xs text-white font-bold leading-none" aria-hidden="true">TN</span>
+                        </div>
+                        <span class="text-xs">Tom N.</span>
+                      </div>
+                    </td>
+                    <td class="px-3 py-3 text-xs text-muted hidden md:table-cell">Jun 10, 2026</td>
+                    <td class="px-3 py-3 text-right font-mono text-xs font-semibold text-white">$67.20</td>
+                    <td class="px-3 py-3"><span class="inline-flex items-center gap-1 text-xs font-semibold text-rose-400 bg-rose-400/10 px-2 py-0.5 rounded-full">Cancelled</span></td>
+                  </tr>
+
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Quick Links / Navigation Cards — 1/3 -->
+          <div class="animate-fadeIn space-y-3" style="animation-delay:340ms">
+            <h2 class="text-sm font-semibold text-slate-200 px-1">Quick Links</h2>
+
+            <a href="analytics.html" class="flex items-center gap-3 bg-card border border-border rounded-xl px-4 py-3.5 hover:border-primary/40 hover:bg-primary/5 transition-all duration-150 cursor-pointer group focus:outline-none focus:ring-2 focus:ring-primary/50 block">
+              <div class="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/25 transition-colors">
+                <svg class="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-semibold text-slate-200 group-hover:text-white transition-colors">Analytics</p>
+                <p class="text-xs text-muted truncate">Deep-dive metrics</p>
+              </div>
+              <svg class="w-4 h-4 text-muted group-hover:text-primary group-hover:translate-x-0.5 transition-all duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            </a>
+
+            <a href="reports.html" class="flex items-center gap-3 bg-card border border-border rounded-xl px-4 py-3.5 hover:border-violet-500/40 hover:bg-violet-500/5 transition-all duration-150 cursor-pointer group focus:outline-none focus:ring-2 focus:ring-primary/50 block">
+              <div class="w-8 h-8 rounded-lg bg-violet-500/15 flex items-center justify-center flex-shrink-0 group-hover:bg-violet-500/25 transition-colors">
+                <svg class="w-4 h-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-semibold text-slate-200 group-hover:text-white transition-colors">Reports</p>
+                <p class="text-xs text-muted truncate">Export & schedule</p>
+              </div>
+              <svg class="w-4 h-4 text-muted group-hover:text-violet-400 group-hover:translate-x-0.5 transition-all duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            </a>
+
+            <a href="orders.html" class="flex items-center gap-3 bg-card border border-border rounded-xl px-4 py-3.5 hover:border-violet-500/40 hover:bg-violet-500/5 transition-all duration-150 cursor-pointer group focus:outline-none focus:ring-2 focus:ring-primary/50 block">
+              <div class="w-8 h-8 rounded-lg bg-violet-500/15 flex items-center justify-center flex-shrink-0 group-hover:bg-violet-500/25 transition-colors">
+                <svg class="w-4 h-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-semibold text-slate-200 group-hover:text-white transition-colors">Orders</p>
+                <p class="text-xs text-muted truncate">Manage & track</p>
+              </div>
+              <svg class="w-4 h-4 text-muted group-hover:text-violet-400 group-hover:translate-x-0.5 transition-all duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            </a>
+
+            <a href="products.html" class="flex items-center gap-3 bg-card border border-border rounded-xl px-4 py-3.5 hover:border-accent/40 hover:bg-accent/5 transition-all duration-150 cursor-pointer group focus:outline-none focus:ring-2 focus:ring-primary/50 block">
+              <div class="w-8 h-8 rounded-lg bg-accent/15 flex items-center justify-center flex-shrink-0 group-hover:bg-accent/25 transition-colors">
+                <svg class="w-4 h-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-semibold text-slate-200 group-hover:text-white transition-colors">Products</p>
+                <p class="text-xs text-muted truncate">Catalog & inventory</p>
+              </div>
+              <svg class="w-4 h-4 text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            </a>
+
+            <a href="customers.html" class="flex items-center gap-3 bg-card border border-border rounded-xl px-4 py-3.5 hover:border-green-500/40 hover:bg-green-500/5 transition-all duration-150 cursor-pointer group focus:outline-none focus:ring-2 focus:ring-primary/50 block">
+              <div class="w-8 h-8 rounded-lg bg-green-500/15 flex items-center justify-center flex-shrink-0 group-hover:bg-green-500/25 transition-colors">
+                <svg class="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-semibold text-slate-200 group-hover:text-white transition-colors">Customers</p>
+                <p class="text-xs text-muted truncate">CRM & segments</p>
+              </div>
+              <svg class="w-4 h-4 text-muted group-hover:text-green-400 group-hover:translate-x-0.5 transition-all duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            </a>
+
+            <a href="settings.html" class="flex items-center gap-3 bg-card border border-border rounded-xl px-4 py-3.5 hover:border-slate-500/40 hover:bg-white/3 transition-all duration-150 cursor-pointer group focus:outline-none focus:ring-2 focus:ring-primary/50 block">
+              <div class="w-8 h-8 rounded-lg bg-slate-500/15 flex items-center justify-center flex-shrink-0 group-hover:bg-slate-500/25 transition-colors">
+                <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-semibold text-slate-200 group-hover:text-white transition-colors">Settings</p>
+                <p class="text-xs text-muted truncate">Account & preferences</p>
+              </div>
+              <svg class="w-4 h-4 text-muted group-hover:text-slate-300 group-hover:translate-x-0.5 transition-all duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            </a>
+
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ SCRIPTS ═══════════════════ -->
+  <script>
+    /* ── Sidebar toggle ── */
+    let sidebarOpen = true;
+
+    function toggleSidebar() {
+      const sidebar  = document.getElementById('sidebar');
+      const overlay  = document.getElementById('overlay');
+      const toggle   = document.getElementById('sidebarToggle');
+      const isMobile = window.innerWidth < 768;
+
+      if (isMobile) {
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('hidden');
+        toggle.setAttribute('aria-expanded', String(sidebar.classList.contains('open')));
+      } else {
+        sidebar.classList.toggle('collapsed');
+        sidebarOpen = !sidebarOpen;
+        toggle.setAttribute('aria-expanded', String(sidebarOpen));
+      }
+    }
+
+    // Close sidebar on resize to mobile
+    window.addEventListener('resize', () => {
+      if (window.innerWidth >= 768) {
+        document.getElementById('overlay').classList.add('hidden');
+      }
+    });
+
+    /* ── Revenue Line Chart ── */
+    (function initRevenueChart() {
+      const ctx = document.getElementById('revenueChart').getContext('2d');
+      const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const revenue = [52000, 58000, 61000, 55000, 67000, 84209, null, null, null, null, null, null];
+      const target  = [60000, 60000, 65000, 65000, 70000, 70000, 75000, 75000, 78000, 78000, 82000, 82000];
+
+      const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+      gradient.addColorStop(0, 'rgba(59,130,246,0.3)');
+      gradient.addColorStop(1, 'rgba(59,130,246,0)');
+
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Revenue',
+              data: revenue,
+              borderColor: '#3B82F6',
+              backgroundColor: gradient,
+              borderWidth: 2,
+              pointRadius: 3,
+              pointHoverRadius: 5,
+              pointBackgroundColor: '#3B82F6',
+              pointBorderColor: '#111827',
+              pointBorderWidth: 2,
+              fill: true,
+              tension: 0.4,
+              spanGaps: false,
+            },
+            {
+              label: 'Target',
+              data: target,
+              borderColor: 'rgba(167,139,250,0.6)',
+              backgroundColor: 'transparent',
+              borderWidth: 1.5,
+              borderDash: [5, 4],
+              pointRadius: 0,
+              fill: false,
+              tension: 0.4,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { intersect: false, mode: 'index' },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#0D1426',
+              borderColor: '#1E293B',
+              borderWidth: 1,
+              titleColor: '#94A3B8',
+              bodyColor: '#F1F5F9',
+              padding: 12,
+              callbacks: {
+                label: ctx => ctx.parsed.y != null ? ` $${ctx.parsed.y.toLocaleString()}` : '',
+              },
+            },
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(30,41,59,0.6)', drawBorder: false },
+              ticks: { color: '#475569', font: { family: 'Fira Code', size: 10 } },
+            },
+            y: {
+              grid: { color: 'rgba(30,41,59,0.6)', drawBorder: false },
+              ticks: {
+                color: '#475569',
+                font: { family: 'Fira Code', size: 10 },
+                callback: v => '$' + (v / 1000).toFixed(0) + 'k',
+              },
+            },
+          },
+        },
+      });
+    })();
+
+    /* ── Traffic Sources Bar Chart ── */
+    (function initTrafficChart() {
+      const ctx = document.getElementById('trafficChart').getContext('2d');
+
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Organic', 'Direct', 'Social', 'Email', 'Paid'],
+          datasets: [{
+            label: 'Visitors',
+            data: [4200, 2850, 1980, 1450, 920],
+            backgroundColor: [
+              'rgba(59,130,246,0.7)',
+              'rgba(167,139,250,0.7)',
+              'rgba(245,158,11,0.7)',
+              'rgba(52,211,153,0.7)',
+              'rgba(251,113,133,0.7)',
+            ],
+            borderRadius: 5,
+            borderSkipped: false,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#0D1426',
+              borderColor: '#1E293B',
+              borderWidth: 1,
+              titleColor: '#94A3B8',
+              bodyColor: '#F1F5F9',
+              padding: 12,
+              callbacks: {
+                label: ctx => ` ${ctx.parsed.x.toLocaleString()} visitors`,
+              },
+            },
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(30,41,59,0.6)', drawBorder: false },
+              ticks: { color: '#475569', font: { family: 'Fira Code', size: 10 }, callback: v => (v / 1000).toFixed(1) + 'k' },
+            },
+            y: {
+              grid: { display: false },
+              ticks: { color: '#94A3B8', font: { family: 'Fira Sans', size: 11 } },
+            },
+          },
+        },
+      });
+    })();
+  </script>
+
+</body>
+</html>
